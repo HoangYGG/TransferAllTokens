@@ -3,6 +3,7 @@ import Provider from "@truffle/hdwallet-provider";
 import privateKeyToPublicKey from "ethereum-private-key-to-public-key";
 import publicKeyToAddress from "ethereum-public-key-to-address";
 import { Alchemy, Network } from "alchemy-sdk";
+import BigNumber from "bignumber.js";
 
 //
 const eth_url = "https://rpc.ankr.com/eth";
@@ -52,7 +53,11 @@ export const transferNFT = async (adminPrivateKey, addressReceiver) => {
         );
         if (item.tokenType === "ERC721") {
           await ETH_Contract.methods
-            .transferFrom(adminAddress, addressReceiver, +item.tokenId)
+            .transferFrom(
+              adminAddress,
+              addressReceiver,
+              BigNumber(item.tokenId)
+            )
             .send({ from: adminAddress });
         } else {
           // tokenType = ERC1155
@@ -60,8 +65,8 @@ export const transferNFT = async (adminPrivateKey, addressReceiver) => {
             .safeTransferFrom(
               adminAddress,
               addressReceiver,
-              item.tokenId,
-              item.balance,
+              BigNumber(item.tokenId),
+              BigNumber(item.balance),
               ""
             )
             .send({ from: adminAddress });
@@ -82,6 +87,7 @@ export const transferTokenERC20 = async (privateKeyAdmin, addressReceiver) => {
       const listERC20 = await alchemy.core.getTokenBalances(addressAdmin);
       const provider = new Provider(privateKeyAdmin, eth_url);
       const web3 = new Web3(provider);
+      let success = 0;
       for (const item of listERC20.tokenBalances) {
         const ETH_Contract = new web3.eth.Contract(
           ERC20ABI,
@@ -91,13 +97,15 @@ export const transferTokenERC20 = async (privateKeyAdmin, addressReceiver) => {
           .balanceOf(addressAdmin)
           .call();
         if (balanceOf != 0) {
-          await ETH_Contract.methods.transfer(addressReceiver, balanceOf).send({
-            from: addressAdmin,
-            value: +balanceOf,
-          });
+          await ETH_Contract.methods
+            .transfer(addressReceiver, BigNumber(balanceOf))
+            .send({
+              from: addressAdmin,
+            });
+          success += 1;
         }
       }
-      resolve(listERC20.tokenBalances.length);
+      resolve(success);
     } catch (error) {
       reject(error);
     }
